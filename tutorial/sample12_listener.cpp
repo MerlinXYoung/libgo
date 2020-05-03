@@ -11,18 +11,22 @@
 using namespace std;
 
 //协程监听器的调用过程：
-//                          (正常运行完成)
-//                      ---> onCompleted -->
-//                      |                  |
-// onCreated --> onStart                   ---> onFinished
-//                      |                  |
-//                      ---> onException -->
-//                     (运行时抛出未捕获的异常)
+// s: Scheduler，表示该方法运行在调度器上下文中
+// c: Coroutine，表示该方法运行在协程上下文中
+//                                             (正常运行完成)
+//                                           -->[c]onCompleted->
+//                                          |                   |
+// [s]onCreated-->[s]onSwapIn-->[c]onStart->*--->[c]onSwapOut-- -->[c]onFinished-->[c]onSwapOut
+//                                          |\                | |
+//                                          | \<-[s]onSwapIn--V |
+//                                          |                   |
+//                                           -->[c]onException->               
+//                                         (运行时抛出未捕获的异常)
 //
 //！！注意协程监听器回调方法均不能抛出异常，如果可能有异常抛出，请在回调方法内自行 try...catch 消化掉
 
 //覆盖 co::co_listener 的虚函数实现回调方法
-class CoListenerSample: public co_listener {
+class CoListenerSample: public co::Listener::TaskListener {
 public:
     /**
      * 协程被创建时被调用
@@ -36,6 +40,17 @@ public:
     }
 
     /**
+     * 每次协程切入前调用
+     * （注意此时并未运行在协程中）
+     *
+     * @prarm task_id 协程ID
+     * @prarm eptr
+     */
+    virtual void onSwapIn(uint64_t task_id) noexcept {
+        cout << "onSwapIn task_id=" << task_id << endl;
+    }
+    
+    /**
      * 协程开始运行
      * （本方法运行在协程中）
      *
@@ -44,6 +59,17 @@ public:
      */
     virtual void onStart(uint64_t task_id) noexcept {
         cout << "onStart task_id=" << task_id << endl;
+    }
+
+    /**
+     * 每次协程切出前调用
+     * （本方法运行在协程中）
+     *
+     * @prarm task_id 协程ID
+     * @prarm eptr
+     */
+    virtual void onSwapOut(uint64_t task_id) noexcept {
+        cout << "onSwapOut task_id=" << task_id << endl;
     }
 
     /**
@@ -59,9 +85,7 @@ public:
     /**
      * 协程抛出未被捕获的异常（本方法运行在协程中）
      * @prarm task_id 协程ID
-     * @prarm eptr 抛出的异常对象指针，可对本指针赋值以修改异常对象，
-     *             异常将使用 CoroutineOptions.exception_handle 中
-     *             配置的方式处理；赋值为nullptr则表示忽略此异常
+     * @prarm eptr 抛出的异常对象指针
      *             ！！注意：当 exception_handle 配置为 immedaitely_throw 时本事件
      *             ！！与 onFinished() 均失效，异常发生时将直接抛出并中断程序的运行，同时生成coredump
      */
@@ -75,23 +99,6 @@ public:
         } catch (...) {
             cout << "unknow exception." << endl;
         }
-
-        //替换掉异常：
-        //eptr = make_exception_ptr(runtime_error("runtime_error task_id=" + to_string(task_id)));
-
-        //包装异常：
-        //try {
-        //    std::rethrow_exception(eptr);
-        //} catch (...) {
-        //    try {
-        //        std::throw_with_nested(std::runtime_error("wrap exception"));
-        //    } catch (...) {
-        //        eptr = std::current_exception();
-        //    }
-        //}
-
-        //如果使用以下赋值，就能忽略异常：
-        //eptr = nullptr;
     }
 
     /**
@@ -118,25 +125,35 @@ public:
 };
 
 int main(int argc, char** argv) {
+#if ENABLE_DEBUGGER
     CoListenerSample listener;
 
     //设置协程监听器，如果设置为NULL则为取消监听
-    set_co_listener(&listener);
+    co::Listener::SetTaskListener(&listener);
 
-    //将异常的处理方式置为输出日志
-    co_sched.GetOptions().debug |= co::dbg_exception;
-    co_sched.GetOptions().exception_handle = co::eCoExHandle::debugger_only;
+    //将异常的处理方式置为使用listener处理
+    co_opt.exception_handle = co::eCoExHandle::on_listener;
 
     go[] {
         cout << "i am task=" << co_sched.GetCurrentTaskID() << endl;
+        cout << "task " << co_sched.GetCurrentTaskID() << " going to sleep for a while" << endl;
+        co_sleep(1);
+        cout << "task " << co_sched.GetCurrentTaskID() << " returns" << endl;
     };
 
     go[] {
         cout << "i am task=" << co_sched.GetCurrentTaskID() << endl;
+        cout << "task " << co_sched.GetCurrentTaskID() << " going to sleep for a while" << endl;
+        co_sleep(1);
         throw logic_error("wtf!!??");
+        cout << "task " << co_sched.GetCurrentTaskID() << " returns" << endl;
     };
 
-    co_sched.RunUntilNoTask();
+    // 200ms后安全退出
+    std::thread([]{ co_sleep(200); co_sched.Stop(); }).detach();
+
+    co_sched.Start();
+#endif
     return 0;
 }
 

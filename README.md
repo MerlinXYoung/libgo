@@ -2,139 +2,128 @@
 
 [![Build Status](https://travis-ci.org/yyzybb537/libgo.svg?branch=master)](https://travis-ci.org/yyzybb537/libgo)
 
-### libgo  - 协程库、并行编程库
+### libgo -- a coroutine library and a parallel Programming Library
 
-libgo是一个使用C++11编写的协作式调度的stackful协程库,
+Libgo is a stackful coroutine library for collaborative scheduling written in C++ 11, and it is also a powerful and easy-to-use parallel programming library.
 
-同时也是一个强大的并行编程库, 是专为Linux服务端程序开发设计的底层框架。
+Three platforms are currently supported:
 
-目前支持三个平台:
+    Linux
 
-    Linux   (GCC4.8+)
+    MacOSX
     
-    Windows (Win7、Win8、Win10 x86 and x64 使用VS2013/2015编译)
-    
-    Mac (在mac分支上, 感谢群友 @eagle518 的贡献)
+    Windows (Win7 or above,x86 or x64,complie with VS2015/2017)
 
 
-使用libgo编写并行程序，即可以像golang、erlang这些并发语言一样开发迅速且逻辑简洁，又有C++原生的性能优势，鱼和熊掌从此可以兼得。
+Using libgo to write multi-threaded programs, it can be developed as fast and logical as golang and Erlang concurrent languages, and has the performance advantages of C++ native.It make it happen that one can serve God and Mammon.
 
-libgo有以下特点：
+Libgo has the following characteristics:
 
- *   1.提供golang一般功能强大协程，基于corontine编写代码，可以以同步的方式编写简单的代码，同时获得异步的性能，
- *   2.支持海量协程, 创建100万个协程只需使用2GB物理内存
- *   3.允许用户自由控制协程调度点，随时随地变更调度线程数；
- *   4.支持多线程调度协程，极易编写并行代码，高效的并行调度算法，可以有效利用多个CPU核心
- *   5.可以让链接进程序的同步的第三方库变为异步调用，大大提升其性能。再也不用担心某些DB官方不提供异步driver了，比如hiredis、mysqlclient这种客户端驱动可以直接使用，并且可以得到不输于异步driver的性能。
- *   6.动态链接和静态链接全都支持，便于使用C++11的用户静态链接生成可执行文件并部署至低版本的linux系统上。
- *   7.提供协程锁(co_mutex), 定时器, channel等特性, 帮助用户更加容易地编写程序. 
- *   8.网络性能强劲，超越boost.asio异步模型；尤其在处理小包和多线程并行方面非常强大。
+*   1.Provide golang's General powerful protocol, write code based on coroutine, can write simple code in a synchronous manner, while achieving asynchronous performance.
+
+*   2.Supporting massive coroutines, creating 1 million coroutines requires only 4.5 GB of physical memory. (data from real test, in no deliberately compressed stack situation.)
+
+*   3.Supporting multi-threaded scheduling protocols, providing efficient load balancing strategy and synchronization mechanism, it is easy to write efficient multi-threaded programs.
+
+*   4.The number of scheduled threads supports dynamic scaling, and there is no head blocking caused by slow scheduling.
+
+*   5.Use hook technology to make synchronous third-party libraries of linking processes become asynchronous calls, which greatly improves their performance. There's no need to worry that some DB authorities don't provide asynchronous drivers, such as hiredis and mysqlclient, which are client drivers that can be used directly and can achieve performance comparable to that of asynchronous drivers.
+
+*   6.Both dynamic links and full static links are supported, which makes it easy to generate executable files using C++ 11 static links and deploy them to low-level Linux systems.
+
+*   7.Provide Channel, Co_mutex, Co_rwmutex, timer and other features to help users write programs more easily.
+
+*   8.Supports local variables (CLS) of the process, and completely covers all scenarios of TLS (read the tutorial code sample13_cls.cpp for details).
+
+* From user feedback in the past two years, many developers have a project with an asynchronous non-blocking model (probably based on epoll, libuv or ASIO network libraries) and then need access to DBs such as MySQL that do not provide asynchronous driver. Conventional connection pool and thread pool schemes are intensive in high concurrency scenarios (each connection have to correspond to a thread for Best performance. Thousands of instruction cycles of thread context switching  are intensive and too many active threads will lead to a sharp decline performance in OS scheduling capacity, which is unacceptable to many develops.
+
+* In this situation, there is no need to reconstruct the existing code if we want to use libgo to solve the problem of blocking operation in non-blocking model. The new libgo 3.0 has created three special tools for this scenario, which can solve this problem without intrusion: multi-scheduler with isolated running environment and easy interaction (read the tutorial code sample1_go.cpp for details), libggo can instead of the traditional thread pool scheme. (read tutorial code sample10_co_pool.cpp and sample11_connection_pool.cpp for details)
+
+
+* ** tutorial directory contains many tutorial codes, including detailed instructions, so that develop can learn libgo library step by step. **
+
+
+* If you find any bugs, good suggestions, or use ambiguities, you can submit a issue or contact the author directly:
+Email: 289633152@qq.com
+
  
- *   如果你发现了任何bug、有好的建议、或使用上有不明之处，可以提交到issue，也可以直接联系作者:
-      email: 289633152@qq.com  QQ交流群: 296561497
+### compile and use libgo :
 
- *   **tutorial目录下有很多教程代码，内含详细的使用说明，让用户可以循序渐进的学习libgo库的使用方法。**
+ *    Vcpkg:
 
- 
-##### libgo的编译与使用:
+        
+If you have installed vcpkg, you can install it directly using vcpkg:
+      $ vcpkg install libgo
 
  *    Linux: 
 
-		0.CMake编译参数
-		
-			ENABLE_BOOST_CONTEXT  `这是在linux上性能最佳的编译参数`
-				libgo在Linux系统上默认使用ucontext做协程上下文切换，开启此选项将使用boost.context来替代ucontext.
-				使用方式：
-					$ cmake .. -DENABLE_BOOST_CONTEXT=ON
-
-			ENABLE_BOOST_COROUTINE
-				libgo在Linux系统上默认使用ucontext做协程上下文切换，开启此选项将使用boost.coroutine来替代ucontext.
-				使用方式：
-					$ cmake .. -DENABLE_BOOST_COROUTINE=ON
-
-			DISABLE_HOOK
-				禁止hook syscall，开启此选项后，网络io相关的syscall将恢复系统默认的行为，
-				协程中使用阻塞式网络io将可能真正阻塞线程，如无特殊需求请勿开启此选项.
-				使用方式：
-					$ cmake .. -DDISABLE_HOOK=ON
-					
-			不开启ENABLE_BOOST_CONTEXT和ENABLE_BOOST_COROUTINE选项时, libgo不依赖boost库，可以直接使用，仅测试代码依赖boost库。
- 
-        1.如果你安装了ucorf或libgonet，那么你已经使用默认的方式安装过libgo了，如果不想设置如上的选项，可以跳过第2步.
- 
-        2.使用CMake进行编译安装：
+        1.Use cmake to compile and install：
 
             $ mkdir build
             $ cd build
             $ cmake ..
+	    $ make debug     #Skip it if you don`t want a debuggable versions.
+            $ sudo make uninstall
             $ sudo make install
 
-          如果希望编译可调试的版本, "cmake .." 命令执行完毕后执行:
-
-            $ make debug
-			$ sudo make install
-
-		  执行单元测试代码：
-
-			$ make test
-			$ make run_test
-
-		  生成性能网络测试代码：
-
-			$ make bm
-
-        3.以动态链接的方式使用时，一定要最先链接liblibgo.so，还需要链接libdl.so. 
-		  例如：
+ 
+        2.Dynamic link to glibc: (put libgo at the front of link list)
         
             g++ -std=c++11 test.cpp -llibgo -ldl [-lother_libs]
             
-        4.以静态链接的方式使用时，只需链接liblibgo.a即可，不要求第一个被链接，但要求libc.a最后被链接. 
-		  要求安装GCC的静态链接库, debian系Linux安装gcc时已经自带, redhat系Linux需要从源中另行安装(yum install gcc-static)
-		  例如:
-        
-            g++ -std=c++11 test.cpp -llibgo -static -static-libgcc -static-libstdc++
+        3.Full static link: (put libgo at the front of link list)
 
- *    Windows: 
+            g++ -std=c++11 test.cpp -llibgo -Wl,--whole-archive -lstatic_hook -lc -lpthread -Wl,--no-whole-archive [-lother_libs] -static
 
-		0.CMake编译参数
-		
-			DISABLE_HOOK
-				禁止hook syscall，开启此选项后，网络io相关的syscall将恢复系统默认的行为，
-				协程中使用阻塞式网络io将可能真正阻塞线程，如无特殊需求请勿开启此选项.
-				使用方式：
-					$ cmake .. -DDISABLE_HOOK=ON
+ *    Windows: (3.0 is compatible with windows, just use master branch directly!)
  
-        1.使用git submodule update --init --recursive下载Hook子模块
-        
-        2.使用CMake构建工程文件. 
+        0.When using GitHub to download code on windows, we must pay attention to the problem of newline characters. Please install git correctly (using default options) and use git clone to download source code. (Do not download compressed packages)
+ 
+        1.Use CMake to build project. 
 			
-			比如vs2015(x64)：
+			#For example vs2015(x64)：
 			$ cmake .. -G"Visual Studio 14 2015 Win64"
 
-			比如vs2015(x86)：
+			#For example vs2015(x86)：
 			$ cmake .. -G"Visual Studio 14 2015"
-			
-			比如vs2013(x64)：
-			$ cmake .. -G"Visual Studio 12 2013 Win64"
         
-        3.使用时需要添加两个include目录：src和src/windows, 或将这两个目录下的头文件拷贝出来使用
+        2.If you want to execute the test code, please link the boost library. And set BOOST_ROOT in the cmake parameter:
         
-        4.如果想要执行测试代码, 需要依赖boost库. 且在cmake参数中设置BOOST_ROOT:
-        
-        		例如：
-        		$ cmake .. -G"Visual Studio 14 2015 Win64" -DBOOST_ROOT="e:\\boost_1_61_0"
+        		For example：
+        		$ cmake .. -G"Visual Studio 14 2015 Win64" -DBOOST_ROOT="e:\\boost_1_69_0"
 
-##### 注意事项(WARNING)：
-* 
+### performance
 
-        1.在开启WorkSteal算法的多线程调度模式下不要使用<线程局部变量(TLS)>。因为协程的每次切换，下一次继续执行都可能处于其他线程中.
+Like golang, libgo implements a complete scheduler (users only need to create a coroutine without concern for the execution, suspension and resource recovery of the coroutine). Therefore, libgo is qualified to compare the performance of single-threaded with golang (It is not qualified to do performance comparison in different ability).
 
-        2.不要让一个代码段耗时过长。协程的调度是协作式调度，需要协程主动让出执行权，推荐在耗时很长的循环中插入一些yield
+<img width="400" src="imgs/switch_cost.png"/>
 
-        3.除网络IO、sleep以外的阻塞系统调用，会真正阻塞调度线程的运行，请使用co_await, 并启动几个线程去Run内置的线程池.
+Test environment: 
+2018 13-inch MAC notebook (CPU minimum)
+Operating System: Mac OSX
+CPU: 2.3 GHz Intel Core i5 (4 Core 8 Threads)
+Test script: $test/golang/test.sh thread_number
 
-##### Linux系统上Hook的系统调用列表：
-* 
+
+<img width="600" src="imgs/switch_speed.png"/>
+
+### Matters needing attention(WARNING)：
+ 
+TLS or non-reentrant library functions that depend on TLS implementation should be avoided as far as possible.
+If it is unavoidable to use, we should pay attention to stop accessing the TLS data generated before handover after the process handover.
+
+
+### There are several kinds of behaviors that may cause the process switching:
+
+* The user calls co_yield to actively give up the cpu span.
+* Competitive Cooperative Lock, Channel Reading and Writing.
+* System Call of Sleep Series.
+* System calls waiting for events to trigger, such as poll, select, epoll_wait.
+* DNS-related system calls (gethostbyname series).
+* Connect, accept, data read-write operations on blocking sockets.
+* Data Read-Write Operation on Pipe.
+
+### System Call List of Hook on Linux System:
 
 		connect   
 		read      
@@ -148,6 +137,7 @@ libgo有以下特点：
 		sendto    
 		sendmsg   
 		poll      
+		__poll
 		select    
 		accept    
 		sleep     
@@ -160,10 +150,14 @@ libgo有以下特点：
 		gethostbyaddr                                                               
 		gethostbyaddr_r
 
-	以上系统调用都是可能阻塞的系统调用, 在协程中使用均不再阻塞整个线程, 阻塞等待期间CPU可以切换到其他协程执行.
-
-*  
+	The above system calls are all possible blocking system calls. The whole thread is no longer blocked in the process. During the blocking waiting period, the CPU can switch to other processes to execute.System calls executed in native threads by HOOK are 100% consistent with the behavior of the original system calls without any change.
+  
+		socket
+		socketpair
+		pipe
+		pipe2
 		close     
+		__close
 		fcntl     
 		ioctl     
 		getsockopt
@@ -172,10 +166,9 @@ libgo有以下特点：
 		dup2      
 		dup3      
 
-    以上系统调用不会造成阻塞, 虽然也被Hook, 但并不会完全改变其行为, 仅用于跟踪socket的选项和状态. 
+    The above system calls will not cause blocking, although they are also Hook, but will not completely change their behavior, only for tracking socket options and status.
 
-##### Windows系统上Hook的系统调用列表：
-* 
+### System Call List of Hook on Windows System:
 
 		ioctlsocket                                                                        
 		WSAIoctl                                                                           

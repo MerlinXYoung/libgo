@@ -1,13 +1,14 @@
 #include <iostream>
 #include <gtest/gtest.h>
 #include <chrono>
+#include <atomic>
 #include <boost/thread.hpp>
 #include "gtest_exit.h"
 #include "coroutine.h"
 using namespace std;
 using namespace co;
 
-int rollback = 0;
+std::atomic_int rollback{0};
 
 struct A
 {
@@ -24,7 +25,7 @@ TEST(testRollback, testRollback)
         go []{
             A a;
         };
-    co_sched.RunUntilNoTask();
+    WaitUntilNoTask();
     EXPECT_EQ(rollback, 10);
 
     for (int i = 0; i < 10; ++i)
@@ -32,7 +33,7 @@ TEST(testRollback, testRollback)
             A a;
             co_yield;
         };
-    co_sched.RunUntilNoTask();
+    WaitUntilNoTask();
     EXPECT_EQ(rollback, 20);
 
     for (int i = 0; i < 10; ++i)
@@ -41,6 +42,6 @@ TEST(testRollback, testRollback)
             co_yield;
             A a2;
         };
-    co_sched.RunUntilNoTask();
+    WaitUntilNoTask();
     EXPECT_EQ(rollback, 40);
 }
