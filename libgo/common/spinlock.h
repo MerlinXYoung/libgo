@@ -62,10 +62,10 @@ struct LFLock
 };
 
 struct FakeLock {
-    void lock() {}
-    bool is_lock() { return false; }
-    bool try_lock() { return true; }
-    void unlock() {}
+    ALWAYS_INLINE void lock() {}
+    ALWAYS_INLINE bool is_lock() { return false; }
+    ALWAYS_INLINE bool try_lock() { return true; }
+    ALWAYS_INLINE void unlock() {}
 };
 
 // atomic_bool可能不是无锁
