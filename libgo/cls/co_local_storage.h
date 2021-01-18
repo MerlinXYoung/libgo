@@ -32,7 +32,7 @@ T& GetSpecific(CLSLocation loc, Args && ... args) {
     CLSMap *m = tk ? &TaskRefClsMap(tk) : GetThreadLocalCLSMap();
 
     any& val = m->Get(loc);
-    if (val.empty()) {
+    if (val.has_value()) {
 //        std::cout << "Set<T> val:" << (void*)&val << ", m:" << (void*)m << std::endl;
 //        std::cout << "sizeof:" << sizeof...(args) << std::endl;
           

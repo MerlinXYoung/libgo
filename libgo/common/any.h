@@ -1,9 +1,15 @@
 #pragma once
 #include <type_traits>
 #include <memory>
-
+#if __cplusplus >=201703L
+#include <any>
+#endif
 namespace co
 {
+#if __cplusplus >=201703L
+using std::any;
+using std::any_cast;
+#else
     class any
     {
     public: // structors
@@ -102,6 +108,9 @@ namespace co
 
         bool empty() const noexcept
         {
+            return !content;
+        }
+        bool has_value() const noexcept{
             return !content;
         }
 
@@ -281,6 +290,7 @@ namespace co
     {
         return unsafe_any_cast<ValueType>(const_cast<any *>(operand));
     }
+#endif
 }
 
 // Copyright Kevlin Henney, 2000, 2001, 2002. All rights reserved.
