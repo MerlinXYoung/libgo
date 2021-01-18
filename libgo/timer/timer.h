@@ -66,7 +66,7 @@ public:
     TimerId ExpireAt(FastSteadyClock::time_point tp, func_t const& cb);
 
     template <typename Rep, typename Period>
-    TimerId ExpireAt(std::chrono::duration<Rep, Period> dur, func_t const& fn) {
+    inline TimerId ExpireAt(std::chrono::duration<Rep, Period> dur, func_t const& fn) {
         return ExpireAt(std::chrono::duration_cast<FastSteadyClock::duration>(dur), fn);
     }
 
