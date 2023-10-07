@@ -271,7 +271,7 @@ public:
   }
 
 protected:
-  Mutex mtx_;
+  mutable Mutex mtx_;
   ConditionVariable pushCv_;
   ConditionVariable popCv_;
   bool closed_{false};
