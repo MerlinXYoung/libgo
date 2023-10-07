@@ -61,7 +61,11 @@ std::error_code MakeCoErrorCode(eCoErrorCode code) {
 void ThrowError(eCoErrorCode code) {
   DebugPrint(dbg_exception, "throw exception %d:%s", (int)code,
              GetCoErrorCategory().message((int)code).c_str());
+#if __cplusplus >= 201703L
+  if (std::uncaught_exceptions() > 0)
+#else
   if (std::uncaught_exception())
+#endif
     return;
   throw std::system_error(MakeCoErrorCode(code));
 }
@@ -71,7 +75,7 @@ co_exception::co_exception(std::string const &errMsg) : errMsg_(errMsg) {}
 
 void ThrowException(std::string const &errMsg) {
   DebugPrint(dbg_exception, "throw co_exception %s", errMsg.c_str());
-#if __cplusplus >= 201703
+#if __cplusplus >= 201703L
   if (std::uncaught_exceptions() > 0)
 #else
   if (std::uncaught_exception())
