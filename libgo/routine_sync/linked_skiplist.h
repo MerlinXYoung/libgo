@@ -1,48 +1,43 @@
 #pragma once
+#include <algorithm>
 #include <atomic>
 #include <thread>
-#include <algorithm>
 
-namespace libgo
-{
+namespace libgo {
 
 template <typename K, typename V, uint8_t MaxHeight = 12>
-struct LinkedSkipList
-{
-public:
+struct LinkedSkipList {
+  public:
     typedef LinkedSkipList<K, V, MaxHeight> this_type;
 
     struct Node;
 
-    struct PointPair
-    {
+    struct PointPair {
         Node* prev = nullptr;
         Node* next = nullptr;
     };
 
-    struct Node
-    {
+    struct Node {
         PointPair links[MaxHeight];
         uint8_t height = 0;
         K key;
         V value;
     };
 
-    class Random
-    {
-    private:
+    class Random {
+      private:
         enum : uint32_t {
-           M = 2147483647L  // 2^31-1
+            M = 2147483647L  // 2^31-1
         };
         enum : uint64_t {
-           A = 16807  // bits 14, 8, 7, 5, 2, 1, 0
+            A = 16807  // bits 14, 8, 7, 5, 2, 1, 0
         };
 
         uint32_t seed_;
 
         static uint32_t GoodSeed(uint32_t s) { return (s & M) != 0 ? (s & M) : 1; }
 
-    public:
+      public:
         // This is the largest value that can be returned from Next()
         enum : uint32_t { kMaxNext = M };
 
@@ -68,21 +63,19 @@ public:
             return seed_;
         }
 
-        static Random* getTLSInstance()
-        {
+        static Random* getTLSInstance() {
             static thread_local Random* instance = createTLSInstance();
             return instance;
         }
 
-    private:
-        static Random* createTLSInstance()
-        {
+      private:
+        static Random* createTLSInstance() {
             size_t seed = std::hash<std::thread::id>()(std::this_thread::get_id());
             return new Random((uint32_t)seed);
         }
     };
 
-public:
+  public:
     LinkedSkipList() {
         setBranchingFactor(4);
         clear();
@@ -91,37 +84,31 @@ public:
     LinkedSkipList(LinkedSkipList const&) = delete;
     LinkedSkipList& operator=(LinkedSkipList const&) = delete;
 
-    void clear()
-    {
+    void clear() {
         head_ = &dummy_;
         head_->height = 1;
-        for (int i = 0; i < MaxHeight; ++i)
-        {
+        for (int i = 0; i < MaxHeight; ++i) {
             head_->links[i].prev = nullptr;
             head_->links[i].next = nullptr;
         }
     }
 
     // 设置增加节点高度的概率: 1/branching_factor
-    void setBranchingFactor(int32_t branching_factor)
-    {
+    inline void setBranchingFactor(int32_t branching_factor) {
         scaledInverseBranching_ = ((uint64_t)Random::kMaxNext + 1) / branching_factor;
     }
 
     // 随机构造height, 不用加锁
-    void buildNode(Node* node)
-    {
+    void buildNode(Node* node) {
         Random* rnd = Random::getTLSInstance();
         uint8_t height = 1;
 
-        while (height < MaxHeight && rnd->Next() < scaledInverseBranching_)
-            ++height;
+        while (height < MaxHeight && rnd->Next() < scaledInverseBranching_) ++height;
 
         node->height = height;
     }
 
-    void insert(Node* node)
-    {
+    void insert(Node* node) {
         if (!node->height) {
             buildNode(node);
         }
@@ -134,8 +121,7 @@ public:
         Node* prevs[MaxHeight] = {};
         lower_bound(node, prevs);
 
-        for (uint8_t i = 0; i < node->height; i++)
-        {
+        for (uint8_t i = 0; i < node->height; i++) {
             Node* prev = prevs[i];
             if (!prev) {
                 prev = head_;
@@ -144,26 +130,18 @@ public:
             Node* next = prev->links[i].next;
 
             node->links[i].next = next;
-            if (next)
-                next->links[i].prev = node;
+            if (next) next->links[i].prev = node;
 
             node->links[i].prev = prev;
             prev->links[i].next = node;
         }
     }
 
-    Node* front() const
-    {
-        return head_->links[0].next;
-    }
+    inline Node* front() const noexcept { return head_->links[0].next; }
 
-    bool empty() const
-    {
-        return !front();
-    }
+    inline bool empty() const noexcept { return !front(); }
 
-    bool erase(Node* node, bool clearHeight = true)
-    {
+    bool erase(Node* node, bool clearHeight = true) {
         if (this_type::unlink(node, clearHeight)) {
             shrink_height();
             return true;
@@ -172,28 +150,21 @@ public:
         return false;
     }
 
-    int height() const
-    {
-        return head_->height;
-    }
+    inline int height() const noexcept { return head_->height; }
 
-    void shrink_height()
-    {
+    void shrink_height() {
         while (head_->height > 1) {
             int i = head_->height - 1;
-            if (head_->links[i].next)
-                return ;
+            if (head_->links[i].next) return;
 
-            -- head_->height;
+            --head_->height;
         }
     }
 
-    static bool unlink(Node* node, bool clearHeight = true)
-    {
+    static bool unlink(Node* node, bool clearHeight = true) {
         bool unlinked = false;
-        for (uint8_t i = 0; i < node->height; ++i)
-        {
-            PointPair & pp = node->links[i];
+        for (uint8_t i = 0; i < node->height; ++i) {
+            PointPair& pp = node->links[i];
             if (pp.prev) {
                 pp.prev->links[i].next = pp.next;
                 unlinked = true;
@@ -210,20 +181,17 @@ public:
         return unlinked;
     }
 
-private:
+  private:
     // @prevs: Node* prevs[MaxHeight] = {};
     // @return: 找到的Node*值是否和value相等
     // @找到的Node*在prevs[0]
-    void lower_bound(Node* node, Node** prevs)
-    {
+    void lower_bound(Node* node, Node** prevs) {
         uint8_t maxHeight = head_->height;
         Node* last = head_;
-        for (uint8_t x = 0; x < maxHeight; x++)
-        {
+        for (uint8_t x = 0; x < maxHeight; x++) {
             uint8_t i = maxHeight - 1 - x;
             Node* pos = last;
-            while (pos->links[i].next && pos->links[i].next->key < node->key)
-            {
+            while (pos->links[i].next && pos->links[i].next->key < node->key) {
                 pos = pos->links[i].next;
             }
             prevs[i] = pos;
@@ -231,10 +199,10 @@ private:
         }
     }
 
-private:
+  private:
     Node* head_;
     Node dummy_;
     uint32_t scaledInverseBranching_;
 };
 
-} // namespace libgo
+}  // namespace libgo
