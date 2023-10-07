@@ -2,6 +2,11 @@
 *.t
 *.a
 *.so
+
+.cache
+.vscode
+
+
 libgo/context/*.asm
 
 third_party/gtest/*
