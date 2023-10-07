@@ -52,7 +52,7 @@ message("----------------------------------")
 
 if (UNIX)
 # https://github.com/apache/brpc/issues/1693
-    set(CMAKE_CXX_FLAGS "-std=c++11 -D__const__=__unused__  -fPIC -fno-strict-aliasing -Wall ${CMAKE_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "-std=c++11 -D__const__=__unused__  -fPIC -fno-strict-aliasing -Wall -Wno-nonnull-compare ${CMAKE_CXX_FLAGS}")
     set(CMAKE_CXX_FLAGS_DEBUG "-g")
     set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -DNDEBUG")
 
