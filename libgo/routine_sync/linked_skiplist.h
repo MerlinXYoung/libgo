@@ -63,16 +63,18 @@ struct LinkedSkipList {
             return seed_;
         }
 
-        static Random* getTLSInstance() {
-            static thread_local Random* instance = createTLSInstance();
+        static Random& getTLSInstance() {
+            static thread_local Random instance{
+                (uint32_t)std::hash<std::thread::id>()(std::this_thread::get_id())};
+            // = createTLSInstance();
             return instance;
         }
 
       private:
-        static Random* createTLSInstance() {
-            size_t seed = std::hash<std::thread::id>()(std::this_thread::get_id());
-            return new Random((uint32_t)seed);
-        }
+        // static Random* createTLSInstance() {
+        //     size_t seed = std::hash<std::thread::id>()(std::this_thread::get_id());
+        //     return new Random((uint32_t)seed);
+        // }
     };
 
   public:
@@ -100,10 +102,10 @@ struct LinkedSkipList {
 
     // 随机构造height, 不用加锁
     void buildNode(Node* node) {
-        Random* rnd = Random::getTLSInstance();
+        Random& rnd = Random::getTLSInstance();
         uint8_t height = 1;
 
-        while (height < MaxHeight && rnd->Next() < scaledInverseBranching_) ++height;
+        while (height < MaxHeight && rnd.Next() < scaledInverseBranching_) ++height;
 
         node->height = height;
     }
