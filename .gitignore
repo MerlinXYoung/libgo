@@ -5,6 +5,9 @@
 
 .cache
 .vscode
+.xmake
+.travis_scripts
+gonet
 
 
 libgo/context/*.asm

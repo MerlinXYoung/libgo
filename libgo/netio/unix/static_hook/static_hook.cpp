@@ -1,3 +1,5 @@
+#undef ENABLE_HOOK
+#define ENABLE_HOOK 0
 #include "../../../common/config.h"
 #include <sys/socket.h>
 #include <sys/types.h>
